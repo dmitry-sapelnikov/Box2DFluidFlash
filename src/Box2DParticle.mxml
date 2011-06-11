@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600"
+			   creationComplete="on_create(event)"
+			   addedToStage="on_add_to_stage(event)"
+			   frameRate="60">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+			protected function on_create(event:FlexEvent):void
+			{
+			}
+
+			protected function on_add_to_stage(event:Event):void
+			{
+				content_holder.addChild(m_testbed);
+			}
+			private var m_testbed:TestbedMain = new TestbedMain();
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<mx:UIComponent width="100%" height="100%" id="content_holder"/>
+</s:Application>
