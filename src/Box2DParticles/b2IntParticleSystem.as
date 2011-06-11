@@ -14,6 +14,7 @@ package Box2DParticles
 	{
 		public function b2IntParticleSystem()
 		{
+			// blah2
 			for (var p_ind:uint = 0; p_ind < N; ++p_ind)
 			{
 				p.push(0, 0);
