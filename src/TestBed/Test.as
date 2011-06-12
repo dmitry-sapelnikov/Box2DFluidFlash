@@ -100,7 +100,7 @@ package TestBed{
 			MouseDrag();
 			
 			// Update physics
-			for (var it_per_frame:int = 0; it_per_frame < 6; ++it_per_frame)
+			for (var it_per_frame:int = 0; it_per_frame < 3; ++it_per_frame)
 			{
 				var physStart:uint = getTimer();
 				m_world.Step(m_timeStep, m_velocityIterations, m_positionIterations);
