@@ -40,6 +40,27 @@ package TestBed{
 	{
 		public function TestParticles()
 		{
+			// Add bodies
+			var fd:b2FixtureDef = new b2FixtureDef();
+			var sd:b2CircleShape = new b2CircleShape();
+			sd.SetRadius(30 / m_physScale);
+			var bd:b2BodyDef = new b2BodyDef();
+			bd.type = b2Body.b2_dynamicBody;
+			//bd.isBullet = true;
+			var b:b2Body;
+			fd.density = 1.0;
+			fd.friction = 0.5;
+			fd.restitution = 0.1;
+			fd.shape = sd;
+			var i:int;
+			// Create 3 stacks
+			for (i = 0; i < 3; i++){
+				
+				//bd.position.Set((640/2+100+Math.random()*0.02 - 0.01) / m_physScale, (360-5-i*25) / m_physScale);
+				bd.position.Set((640/2+100) / m_physScale, (360-5-i*25) / m_physScale);
+				b = m_world.CreateBody(bd);
+				b.CreateFixture(fd);
+			}
 			var ps_bound:b2AABB = new b2AABB();
 			ps_bound.lowerBound.x = 0;
 			ps_bound.lowerBound.y = 0;
@@ -58,6 +79,12 @@ package TestBed{
 					particleSystem.addParticle(desc);
 				}
 			}*/
+			var body:b2Body = m_world.GetBodyList(); 
+			while (body != null)
+			{
+				particleSystem.AddBody(body);
+				body = body.GetNext();
+			}
 			
 			m_controller = particleSystem;
 			m_world.AddController(m_controller);
