@@ -128,7 +128,7 @@ package Box2DParticles
 			debugDraw.DrawPolygon(aabbVert, 4, color);
 		}
 		
-		private function CollideCircle(pos:b2Vec2, r:Number, xf:b2Transform):void
+		private function CollideCircle(body:b2Body, pos:b2Vec2, r:Number, xf:b2Transform):void
 		{		
 			var tMat:b2Mat22 = xf.R;
 			var cX:Number = xf.position.x + (tMat.col1.x * pos.x + tMat.col2.x * pos.y);
@@ -151,13 +151,14 @@ package Box2DParticles
 					if (dist > Number.MIN_VALUE)
 						to_p.Multiply(1.0 / dist);
 					const delta:Number = Math.min(pR, (maxDist - dist) * 0.9);
+					body.ApplyForce( new b2Vec2(-to_p.x * delta * 3000, -to_p.y * delta * 3000), new b2Vec2(p_f[i], p_f[i+1]) );
 					p_f[i] += to_p.x * delta;
 					p_f[i + 1] += to_p.y * delta;
 				}
 			}
 		}
 		
-		private function CollidePolygon(poly:b2PolygonShape, xf:b2Transform):void
+		private function CollidePolygon(body:b2Body, poly:b2PolygonShape, xf:b2Transform):void
 		{
 			const pR:Number = 0.5 * m_scale;
 			const border:Number = 0.0;
@@ -168,6 +169,7 @@ package Box2DParticles
 				if (pushDir != null)
 				{
 					const len:Number = Math.min(pR, (pushDir.z + border) * 0.9);
+					//body.ApplyForce( new b2Vec2(-pushDir.x * len * 3000, -pushDir.y * len * 3000), new b2Vec2(p_f[i], p_f[i+1]) );
 					p_f[i] += pushDir.x * len;
 					p_f[i + 1] += pushDir.y * len;
 				}
@@ -313,14 +315,14 @@ package Box2DParticles
 					if (fixture.GetShape() is b2PolygonShape)
 					{
 						var polyShape:b2PolygonShape = fixture.GetShape() as b2PolygonShape;
-						CollidePolygon(polyShape, body.GetTransform());
+						CollidePolygon(body, polyShape, body.GetTransform());
 					}
 					else
 					{
 						if (fixture.GetShape() is b2CircleShape)
 						{
 							var circleShape:b2CircleShape = fixture.GetShape() as b2CircleShape;
-							CollideCircle(circleShape.GetLocalPosition(), circleShape.GetRadius(), body.GetTransform());
+							CollideCircle(body, circleShape.GetLocalPosition(), circleShape.GetRadius(), body.GetTransform());
 						}
 					}
 					fixture = fixture.GetNext();
