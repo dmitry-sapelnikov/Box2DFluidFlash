@@ -42,8 +42,10 @@ package TestBed{
 		{
 			// Add bodies
 			var fd:b2FixtureDef = new b2FixtureDef();
-			var sd:b2CircleShape = new b2CircleShape();
-			sd.SetRadius(30 / m_physScale);
+			//var sd:b2CircleShape = new b2CircleShape();
+			//sd.SetRadius(30 / m_physScale);
+			var sd:b2PolygonShape = new b2PolygonShape();
+			sd.SetAsBox((30) / m_physScale, (10) / m_physScale);
 			var bd:b2BodyDef = new b2BodyDef();
 			bd.type = b2Body.b2_dynamicBody;
 			//bd.isBullet = true;
@@ -68,17 +70,9 @@ package TestBed{
 			ps_bound.upperBound.y = 10;
 				
 			var particleSystem:b2IntParticleSystem = new b2IntParticleSystem();
-			/*const desc:b2ParticleDescriptor = new b2ParticleDescriptor(ps_bound.GetCenter(), 0.1, new b2Vec2(0.0, 0.0));
-			for(var y:int = 0; y < 50; y++)
-			{
-				for(var x:int = -10; x < 10; x++)
-				{
-					desc.position = ps_bound.GetCenter();
-					desc.position.x += x * desc.radius * 2.0;
-					desc.position.y += y * desc.radius * 2.0;
-					particleSystem.addParticle(desc);
-				}
-			}*/
+			particleSystem.InitOrdered(1000);
+			particleSystem.SetGravity(new b2Vec2(0.0, 8.0));
+	
 			var body:b2Body = m_world.GetBodyList(); 
 			while (body != null)
 			{
