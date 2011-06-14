@@ -4,6 +4,7 @@ package Box2DParticles
 	import Box2D.Collision.Shapes.b2PolygonShape;
 	import Box2D.Collision.b2AABB;
 	import Box2D.Common.Math.b2Mat22;
+	import Box2D.Common.Math.b2Math;
 	import Box2D.Common.Math.b2Transform;
 	import Box2D.Common.Math.b2Vec2;
 	import Box2D.Common.Math.b2Vec3;
@@ -162,59 +163,55 @@ package Box2DParticles
 		{
 			const pR:Number = 0.5 * m_scale;
 			const border:Number = 0.0;
+			
+			var normals:Vector.<b2Vec2> = poly.GetNormals();
+			var verts:Vector.<b2Vec2> = poly.GetVertices();
+			var rotatedNormals:Vector.<b2Vec2> = new Vector.<b2Vec2>();
+			var edgeDist:Vector.<Number> = new Vector.<Number>();
+			
+			const normalCount:uint = normals.length;
+			for (var ni:uint = 0; ni < normalCount; ++ni)
+			{
+				var normal:b2Vec2 = normals[ni];
+				var vert:b2Vec2 = verts[ni];
+				
+				var rotatedNormal:b2Vec2 = new b2Vec2(normal.x, normal.y);
+				rotatedNormal.MulM(xf.R);
+				rotatedNormals.push(rotatedNormal);
+				edgeDist.push(b2Math.Dot(vert, normal) + pR);
+			}
+			
+			var center:b2Vec2 = xf.position;
 			for (var i:uint = 0; i < (N << 1); i += 2)
 			{
-				const pushDir:b2Vec3 = PointPolyPushDirection(poly, xf, new b2Vec2(p_f[i], p_f[i + 1]), border);
-				//	The current particle is inside the polygon
+				var pointLocal:b2Vec2 = new b2Vec2(p_f[i] - center.x, p_f[i + 1] - center.y);
+				
+				var diffMin:Number = 100000000;
+				var pushDir:b2Vec2 = null;
+				for (var nri:uint = 0; nri < normalCount; ++nri)
+				{
+					const diff:Number = edgeDist[nri] - b2Math.Dot(rotatedNormals[nri], pointLocal);
+					if (diff <= 0.0)
+					{
+						pushDir = null;
+						break;
+					}
+					
+					if (diff < diffMin)
+					{
+						diffMin = diff;
+						pushDir = rotatedNormals[nri];
+					}
+				}
+				
 				if (pushDir != null)
 				{
-					const len:Number = Math.min(pR, (pushDir.z + border) * 0.9);
-					//body.ApplyForce( new b2Vec2(-pushDir.x * len * 3000, -pushDir.y * len * 3000), new b2Vec2(p_f[i], p_f[i+1]) );
+					const len:Number = Math.min(pR * 0.9, diffMin * 0.9);
+					body.ApplyForce( new b2Vec2(-pushDir.x * len * 2000, -pushDir.y * len * 2000), new b2Vec2(p_f[i], p_f[i+1]) );
 					p_f[i] += pushDir.x * len;
 					p_f[i + 1] += pushDir.y * len;
 				}
 			}
-		}
-		
-		public function PointPolyPushDirection(poly:b2PolygonShape, xf:b2Transform, p:b2Vec2, r:Number) : b2Vec3
-		{
-			var tVec:b2Vec2;
-			
-			//b2Vec2 pLocal = b2MulT(xf.R, p - xf.position);
-			var tMat:b2Mat22 = xf.R;
-			var tX:Number = p.x - xf.position.x;
-			var tY:Number = p.y - xf.position.y;
-			var pLocalX:Number = (tX*tMat.col1.x + tY*tMat.col1.y);
-			var pLocalY:Number = (tX*tMat.col2.x + tY*tMat.col2.y);
-			
-			const vertices:Vector.<b2Vec2> = poly.GetVertices();
-			const normals:Vector.<b2Vec2> = poly.GetNormals();
-			const vertCount:uint = vertices.length;
-			
-			var pushNormal:b2Vec2 = null;
-			var minDepth:Number = -10000000;
-			for (var i:int = 0; i < vertCount; ++i)
-			{
-				//float32 dot = b2Dot(m_normals[i], pLocal - m_vertices[i]);
-				tVec = vertices[i];
-				tX = pLocalX - tVec.x;
-				tY = pLocalY - tVec.y;
-				tVec = normals[i];
-				var dot:Number = (tVec.x * tX + tVec.y * tY);
-				if (dot >= r)
-				{
-					return null;
-				}
-				else
-				{
-					if (dot > minDepth)
-					{
-						pushNormal = normals[i];
-						minDepth = dot;
-					}
-				}
-			}
-			return new b2Vec3(pushNormal.x, pushNormal.y, -minDepth);
 		}
 		
 		public override function Step(step:b2TimeStep):void
