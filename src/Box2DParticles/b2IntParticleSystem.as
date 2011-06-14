@@ -24,7 +24,7 @@ package Box2DParticles
 	{
 		public function b2IntParticleSystem()
 		{
-			for (var p_ind:uint = 0; p_ind < N; ++p_ind)
+			for (var p_ind:uint = 0; p_ind < m_particleCount; ++p_ind)
 			{
 				p.push(0, 0);
 				op.push(0, 0);
@@ -38,22 +38,44 @@ package Box2DParticles
 				c.push(0);
 				g.push(0, 0);
 			}
-			
-			InitOrdered();
-			
-			m_poly.SetAsBox(7, 40);
 		}
 		
-		private function InitOrdered():void
+		public function AddParticle(position:b2Vec2, speed:b2Vec2):void
 		{
-			for (var i:uint = 0; i < N; i++)
+			p.push(FloatToIntCoord(position.x), FloatToIntCoord(position.y));
+			op.push(FloatToIntCoord(position.x - speed.x), FloatToIntCoord(position.y - speed.y));
+			
+			p_f.push(0.0, 0.0);
+			op_f.push(0.0, 0.0);
+			
+			++m_particleCount;
+		}
+		
+		public function InitOrdered(particleCount:uint):void
+		{
+			m_particleCount = 0;
+			p = new Vector.<int>();
+			op = new Vector.<int>();
+			
+			p_f = new Vector.<Number>();
+			op_f = new Vector.<Number>();
+			
+			var pos:b2Vec2 = new b2Vec2();
+			var vel:b2Vec2 = new b2Vec2(0.0, 0.0);
+			
+			for (var i:uint = 0; i < particleCount; i++)
 			{
-				p[i * 2] = ONE+MINIMAL  +  (i % (FIELDSIZE-5)) * ONE + i / 10;
-				p[i * 2 + 1] = ONE+MINIMAL + (i / (FIELDSIZE-5)) * ONE; 
-				
-				op[i * 2] = p[i * 2];
-				op[i * 2 + 1] = p[i * 2 + 1];
+				pos.x = IntToFloatCoord(ONE+MINIMAL  +  (i % (FIELDSIZE-5)) * ONE + i / 10);
+				pos.y = IntToFloatCoord(ONE+MINIMAL + (i / (FIELDSIZE-5)) * ONE);
+				AddParticle(pos, vel);
 			}
+			updateFloatPositions();
+		}
+		
+		public function SetGravity(value:b2Vec2):void
+		{
+			m_gravity.x = value.x;
+			m_gravity.y = value.y;
 		}
 		
 		private function AddParticleToCell(i:uint, cell:uint):void
@@ -114,7 +136,7 @@ package Box2DParticles
 			}*/
 			
 			const drawScale:Number = debugDraw.GetDrawScale();
-			for (var i:uint = 0; i < N; i++)
+			for (var i:uint = 0; i < m_particleCount; i++)
 			{
 				var position:b2Vec2 = new b2Vec2(p_f[i * 2], p_f[i * 2 + 1]);
 				//m_bitmap_data.setPixel32(Math.round(position.x), Math.round(position.y), 0xff000000); 
@@ -141,7 +163,7 @@ package Box2DParticles
 			//const maxDistTol:Number = maxDist - DIST_TOL;
 			
 			var to_p:b2Vec2 = new b2Vec2();
-			for (var i:uint = 0; i < (N << 1); i += 2)
+			for (var i:uint = 0; i < (m_particleCount << 1); i += 2)
 			{
 				to_p.x = p_f[i] - cX;              
 				to_p.y = p_f[i + 1] - cY;
@@ -182,7 +204,7 @@ package Box2DParticles
 			}
 			
 			var center:b2Vec2 = xf.position;
-			for (var i:uint = 0; i < (N << 1); i += 2)
+			for (var i:uint = 0; i < (m_particleCount << 1); i += 2)
 			{
 				var pointLocal:b2Vec2 = new b2Vec2(p_f[i] - center.x, p_f[i + 1] - center.y);
 				
@@ -221,9 +243,12 @@ package Box2DParticles
 				c[cell_ind] = 0;
 			}
 			
-			// Solving and broad phase
+			const gravityX:int = Math.round((m_gravity.x * step.dt * step.dt * 0.5) * ONE); 
+			const gravityY:int = Math.round((m_gravity.y * step.dt * step.dt * 0.5) * ONE);
+			
+			// Verlet integration
 			var i:uint = 0;
-			for (i = 0; i < (N << 1); i += 2)
+			for (i = 0; i < (m_particleCount << 1); i += 2)
 			{
 				/*#ifdef SPD_CONST
 				if (int(p[i] - op[i]) > +MAX_SPD) op[i] = p[i] - MAX_SPD; 
@@ -233,15 +258,12 @@ package Box2DParticles
 				#endif*/
 				
 				var tmp:int = p[i];
-				p[i] += p[i] - op[i];
+				p[i] += p[i] - op[i] + gravityX;
 				op[i] = tmp;
 				
 				tmp = p[i + 1];
-				p[i + 1] += p[i + 1] - op[i + 1] + GRAVITY;
+				p[i + 1] += p[i + 1] - op[i + 1] + gravityY;
 				op[i + 1] = tmp;
-				
-				if (p[i] < MINIMAL) p[i] = MINIMAL; else if (p[i] > MAXIMAL) p[i] = MAXIMAL;
-				if (p[i + 1] < MINIMAL) p[i + 1] = MINIMAL; else if (p[i + 1] > MAXIMAL) p[i + 1] = MAXIMAL; 
 				
 				//#ifdef SPD_DAMP
 				//op[i] += sign_i(p[i] - op[i]) * DAMP_SPD;
@@ -249,22 +271,29 @@ package Box2DParticles
 				//op[i] = p[i] - int(Number(p[i] - op[i]) * DAMP_SPD_F);
 				//op[i + 1] = p[i + 1] - int(Number(p[i + 1] - op[i + 1]) * DAMP_SPD_F);
 				//#endif
-				
-				// broad phase
-				tmp = (p[i] >> ONEBITS) + (p[i + 1] >> ONEBITS) * DEPTH;
-				
-				AddParticleToCell(i, tmp);
 			}
 			
+			//	World collision
 			updateFloatPositions();
 			CollideWithWorld();
 			FloatToIntPositions();
+			
+			//	Clipping and broad phase
+			for (i = 0; i < (m_particleCount << 1); i += 2)
+			{
+				if (p[i] < MINIMAL) p[i] = MINIMAL; else if (p[i] > MAXIMAL) p[i] = MAXIMAL;
+				if (p[i + 1] < MINIMAL) p[i + 1] = MINIMAL; else if (p[i + 1] > MAXIMAL) p[i + 1] = MAXIMAL; 
+				
+				var cell:uint = (p[i] >> ONEBITS) + (p[i + 1] >> ONEBITS) * DEPTH;
+				AddParticleToCell(i, cell);
+			}
+			
 			// Narrow phase
-			for (i = 0; i < (N << 1); i += 2)
+			for (i = 0; i < (m_particleCount << 1); i += 2)
 			{
 				var glob:uint = (p[i] >> ONEBITS) + (p[i + 1] >> ONEBITS)* DEPTH;
 				
-				if (c[glob] == 2) // current cell
+				if (c[glob] == 2)// current cell
 				{
 					//GLOB_IDX_P idx = &g[glob << 1];
 					if (g[glob << 1] != i)
@@ -273,7 +302,7 @@ package Box2DParticles
 						Collide(i, g[(glob << 1) + 1]);
 				}                            
 				
-				// four cells around
+				// Four cells around
 				CollideInCell(i, glob + 1);
 				glob += DEPTH; 
 				CollideInCell(i, glob);
@@ -284,16 +313,26 @@ package Box2DParticles
 		
 		private function updateFloatPositions():void
 		{
-			for (var i:uint = 0; i < N * 2; ++i)
+			for (var i:uint = 0; i < m_particleCount * 2; ++i)
 			{
 				p_f[i] = p[i] * TOFLOAT * m_scale;
 				op_f[i] = op[i] * TOFLOAT * m_scale;
 			}
 		}
 		
+		private function IntToFloatCoord(x:int):Number
+		{
+			return x * TOFLOAT * m_scale;
+		}
+		
+		private function FloatToIntCoord(x:Number):int
+		{
+			return Math.round((x / m_scale) * ONE);
+		}
+		
 		private function FloatToIntPositions():void
 		{
-			for (var i:uint = 0; i < N * 2; ++i)
+			for (var i:uint = 0; i < m_particleCount * 2; ++i)
 			{
 				p[i] = Math.round((p_f[i] / m_scale) * ONE);
 				op[i] = Math.round((op_f[i] / m_scale) * ONE);
@@ -329,7 +368,6 @@ package Box2DParticles
 		}
 		
 	//	Private constants
-		private static const N:uint = 1000;
 		private static const ONE:int = 16384;   // 2^14
 		private static const ONEBITS:int = 14;
 		private static const FIELDSIZE:int = 75;
@@ -340,32 +378,29 @@ package Box2DParticles
 		private static const MAXIMAL:int = FIELD - MINIMAL;
 		private static const MAX_SPD:int = ONE / 4;
 		private static const DAMP_SPD:int = 1;
-		//CELLSIZE	=	4,
-		//CELLSIZE_BYTES= 2,
 		private static const DEPTH:int = FIELDSIZE;
 		private static const DEPTHQUAD:int = DEPTH * DEPTH;
-		private static const GRAVITY:int = 20;
-		private static const RESPONSE:int = ONE * 4;
+		private static const RESPONSE:int = ONE * 3;
 		private static const ATTRACTION:int = 2;
 		
 		private static const TOFLOAT:Number = 1.0 / Number(ONE);
 		private static const DAMP_SPD_F:Number = 0.999999;
 		
 	//	Private members
-		private var p:Vector.<int> = new Vector.<int>(); //p[2 * N]
-		private var op:Vector.<int> = new Vector.<int>() //op[2 * N];
+		private var m_particleCount:uint = 0;
+		
+		private var p:Vector.<int> = new Vector.<int>();
+		private var op:Vector.<int> = new Vector.<int>();
 			
-		private var p_f:Vector.<Number> = new Vector.<Number>(); //p[2 * N]
-		private var op_f:Vector.<Number> = new Vector.<Number>(); //p[2 * N]
+		private var p_f:Vector.<Number> = new Vector.<Number>();
+		private var op_f:Vector.<Number> = new Vector.<Number>();
 		
 		private var c:Vector.<uint> = new Vector.<uint>();//char c[DEPTH * DEPTH];
 		private var g:Vector.<uint> = new Vector.<uint>();//GLOB_IDX g[DEPTH * DEPTH * 2];
 		
 		private var m_bitmap_data:BitmapData = null;
 		
-		private var m_poly:b2PolygonShape = new b2PolygonShape();
-		private var m_polyTransform:b2Transform = new b2Transform();
-		
 		private var m_scale:Number = 0.3;
+		private var m_gravity:b2Vec2 = new b2Vec2(0.0, 1.0);
 	}
 }
